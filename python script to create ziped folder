@@ -1,0 +1,18 @@
+import os
+import zipfile
+
+# Folder containing the generated invitations
+input_folder = "Invitations_Electronics"
+# Output zip file name
+zip_filename = "Electronics_Invitations.zip"
+
+# Create zip file
+with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    for root, _, files in os.walk(input_folder):
+        for file in files:
+            if file.endswith(".docx"):
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, input_folder)  # relative path inside zip
+                zipf.write(file_path, arcname)
+
+print(f"✅ All invitations zipped into: {zip_filename}")
