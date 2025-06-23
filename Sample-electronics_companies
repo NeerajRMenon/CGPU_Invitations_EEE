@@ -1,0 +1,121 @@
+import os
+import zipfile
+import shutil
+
+# List of core electrical companies and HR mails
+electronics_companies = [
+    ("Ultraviolette Automotive", ["nandheeraj@gmail.com", "peraira.jasmine@ultraviolette.com"]),
+    ("Infineon Technologies", ["jyoti.vimal@infineon.com", "swati.gupta@infineon.com"]),
+    ("Tata Elxsi", ["amulya.g@tataelxsi.co.in"]),
+    ("Skyworks Solutions, Inc.", ["mavis.lee@skyworksin.com"]),
+    ("Applied Materials India", ["India_TalentAcquisition@amat.com"]),
+    ("SION Semiconductors", ["madhuri@sionsemi.com"]),
+    ("Micron Technology", ["namank@micron.com", "skharayat@micron.com"]),
+    ("Samsung C&T", ["b.tiwari@samsung.com", "sa.shaikh@samsung.com"]),
+    ("Ather Energy", ["ankita.mehta@atherenergy.com", "ankita304@gmail.com"]),
+    ("Ignitarium", ["swathy@ignitarium.com"]),
+    ("Honeywell", ["swati.singh4@honeywell.com"]),
+    ("Nokia", ["adis2731@gmail.com"]),
+    ("LG-Soft", ["dhatri.agrawal@lge.com"]),
+    ("Miko", ["shrisha.bari@miko.ai", "rane.vaishnavi@miko.ai"]),
+    ("Marvell Technology", ["kpriya@marvell.com"]),
+    ("Thales", ["mohit.pathak@thalesgroup.com"]),
+    ("TE Connectivity", ["ramya.r@te.com"]),
+    ("Johnson Electric", ["prasanth.p@johnsonelectric.com"]),
+    ("Harman India", ["Divya.Fernandez@harman.com"]),
+    ("MosChip Technologies", ["durgaprasad3777@gmail.com"]),
+    ("Sandisk", ["akanksha.jain279996@gmail.com"]),
+    ("Rambus", ["vhonnappa@rambus.com"]),
+    ("QSC", ["varsha.kumari@qsc.com"]),
+    ("Kaynes Technology India Ltd", ["chandanachandana44@gmail.com"]),
+    ("Magna International", ["dprafull20@yahoo.com"])
+]
+
+
+# Template and output paths
+template_path = "Invitation_to_CET_Electronics.docx"
+output_folder = "Invitations_Electronics"
+os.makedirs(output_folder, exist_ok=True)
+
+import re
+
+def generate_personalized_doc(company_name, hr_emails, index):
+    # temp folder
+    temp_folder = f"temp_{index}"
+    if os.path.exists(temp_folder):
+        shutil.rmtree(temp_folder)
+    os.makedirs(temp_folder)
+
+    # unzip template
+    with zipfile.ZipFile(template_path, 'r') as zip_ref:
+        zip_ref.extractall(temp_folder)
+
+    # Paths
+    doc_path = os.path.join(temp_folder, "word", "document.xml")
+    rels_path = os.path.join(temp_folder, "word", "_rels", "document.xml.rels")
+
+    # --- Step 1: Modify document.xml ---
+    with open(doc_path, "r", encoding="utf-8") as file:
+        content = file.read()
+
+    # Email line at top
+    email_string = ", ".join(hr_emails)
+    email_line = f"<w:p><w:r><w:t>{email_string}</w:t></w:r></w:p>"
+    content = content.replace("<w:body>", f"<w:body>{email_line}", 1)
+
+    # Replace company name placeholder
+    content = content.replace("[Company Name]", company_name)
+
+    # Hyperlink ID
+    hyperlink_id = "rId100"
+
+    # WordprocessingML for the clickable brochure link
+    brochure_line = f"""
+    <w:p>
+      <w:hyperlink r:id="{hyperlink_id}" w:history="1">
+        <w:r>
+          <w:rPr>
+            <w:rStyle w:val="Hyperlink"/>
+          </w:rPr>
+          <w:t> Brochure Link</w:t>
+        </w:r>
+      </w:hyperlink>
+    </w:p>
+    """
+
+    # Find the <w:t> tag ending in 'Kindly find our placement brochure here:' and insert the link after that
+    pattern = r'(<w:t>[^<]*Kindly find our placement brochure here:.*?</w:t>)'
+    match = re.search(pattern, content)
+
+    if match:
+        content = content.replace(match.group(1), match.group(1) + brochure_line)
+    else:
+        print(f"⚠️ Could not find sentence end for brochure placement in {company_name}'s document.")
+
+    with open(doc_path, "w", encoding="utf-8") as file:
+        file.write(content)
+
+    # --- Step 2: Add hyperlink relation ---
+    if os.path.exists(rels_path):
+        with open(rels_path, "r", encoding="utf-8") as file:
+            rels_content = file.read()
+
+        link_entry = f'<Relationship Id="{hyperlink_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://drive.google.com/file/d/1_8qqd-US17HtMRj9IooHw7ZTjbQKttgP/view" TargetMode="External"/>'
+        rels_content = rels_content.replace("</Relationships>", f"{link_entry}\n</Relationships>")
+
+        with open(rels_path, "w", encoding="utf-8") as file:
+            file.write(rels_content)
+
+    # Save as .docx
+    output_docx = os.path.join(output_folder, f"Invitation_{index}_{company_name.replace(' ', '_')}.docx")
+    shutil.make_archive("temp_doc", 'zip', temp_folder)
+    shutil.move("temp_doc.zip", output_docx)
+
+    # Clean up
+    shutil.rmtree(temp_folder)
+
+# Generate invitations
+for idx, (company, emails) in enumerate(electronics_companies, 1):
+    generate_personalized_doc(company, emails, idx)
+
+print("✅ All personalized invitations for core electrical companies have been created.")
